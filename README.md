@@ -1,8 +1,8 @@
 # RouterOS-Travel-Router-Script
-RouterOS terminal script to easily configure the device as a "travel router."
+MikroTik RouterOS terminal script to easily configure the device as a "travel router."
 
 ## Background
-I bought a hAP ax2 to use as my travel router and it was my first venture into the RouterOS ecosystem.  I was frustrated by how difficult it was to swap between using the 5GHz and 2.4GHz radios as the WAN.  This script is the result of that frustration.  Disclaimer: I am not an expert in RouterOS scripting, so no promises that this actually works for you.  Improvements and PRs from more experienced users are appreciated.
+I bought a MikroTik hAP ax2 to use as my travel router and it was my first venture into the RouterOS ecosystem.  I was frustrated by how difficult it was to swap between using the 5GHz and 2.4GHz radios as the WAN.  This script is the result of that frustration.  Disclaimer: I am not an expert in RouterOS scripting, so no promises that this actually works for you.  Improvements and PRs from more experienced users are appreciated.
 
 ## Assumptions:
 This script was written for the hAP ax2.  YMMV for other devices.  Recommend running this script from a default-ish configuration for best results.
