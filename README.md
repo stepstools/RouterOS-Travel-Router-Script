@@ -22,7 +22,7 @@ This script was written for the hAP ax2.  YMMV for other devices.  Recommend run
 5. The script will prompt you to select the interface you want to become the WAN.
 - WARNING: ENSURE YOU ARE NOT CURRENTLY CONNECTED TO THE ROUTER USING THAT INTERFACE OR YOU WILL LOSE CONNECTION!
 6. If you select ether1 it will automatically configure it as WAN and set wifi1/wifi2 as access points.
-7. If you select wifi1/wifi2 it will scan for available networks to select to and guide you through the connection process.
+7. If you select wifi1/wifi2 it will scan for available networks and guide you through the connection process.
 
 ## To-Do:
 1. Improve cross-platform reliability by creating variables for the WAN ethernet port and wifi1/wifi2.
