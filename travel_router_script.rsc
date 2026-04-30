@@ -37,101 +37,101 @@
 
 # MODE 2 & 3
 :if ($userInput = 50 || $userInput = 51) do={
-    :local wanInt "wifi1"; :local lanInt "wifi2"; :local lanSSID $apSSID2G
-    :if ($userInput = 51) do={ :set wanInt "wifi2"; :set lanInt "wifi1"; :set lanSSID $apSSID5G }
+    :local wanInt "wifi1"; :local lanInt "wifi2"; :local lanSSID $apSSID2G
+    :if ($userInput = 51) do={ :set wanInt "wifi2"; :set lanInt "wifi1"; :set lanSSID $apSSID5G }
 
-    # Remove WAN WiFi From Bridge Before Connecting
-    /interface bridge port remove [find interface=$wanInt]
+    # Configure LAN WiFi Radio as Access Point
+    /interface wifi set [find name=$lanInt] configuration.mode=ap configuration.ssid=$lanSSID security.passphrase=$apPassword security.authentication-types=wpa2-psk,wpa3-psk channel.skip-dfs-channels=10min-cac disabled=no
 
-    # Configure WAN WiFi Radio as Station
-    /interface wifi set [find name=$wanInt] configuration.mode=station channel.skip-dfs-channels=10min-cac disabled=no
-    /interface wifi unset [find name=$wanInt] security.authentication-types
-    
-    # Search for Networks to Connect To
-    :put "Scanning for available networks... (10 Seconds)"
-    :local results [/interface/wifi/scan $wanInt duration=10s as-value]
-    :local ssidList [:toarray ""]
+    # Remove WAN WiFi From Bridge Before Connecting
+    /interface bridge port remove [find interface=$wanInt]
 
-    :put "----- Available Networks -----"
-    :foreach r in=$results do={
-        :local sid ($r->"ssid")
-        
-        # Only Show Unique SSIDs Longer Than 1 Char
-        :if ([:len $sid] > 1 && [:find $ssidList $sid] = [:nothing]) do={
-            :set ssidList ($ssidList , $sid)
-            :put "[ $[:len $ssidList] ] - $sid ($($r->"signal") dBm)"
-        }
-    }
+    # Configure Bridge
+    :foreach p in={ "ether1";"ether2";"ether3";"ether4";"ether5";$lanInt } do={ :do { /interface bridge port add bridge=$bridgeName interface=$p } on-error={} }
 
-    :if ([:len $ssidList] = 0) do={
-        :error "No networks found!"
-    }
-    
-    :put "Select Network #:"
-    :local index (([/terminal inkey] - 49))
+    # Configure WAN/LAN Interfaces
+    /interface list member remove [find list=WAN]
+    /interface list member add list=WAN interface=$wanInt
+    :do { /interface list member add list=LAN interface=$bridgeName } on-error={}
 
-    :if ($index >= 0 && $index < [:len $ssidList]) do={
-        :local targetSSID ($ssidList->$index)
-        :local targetPass [/terminal/ask prompt="Password (Blank for Open Network): "]
-        
-        :put ">>> Connecting to $targetSSID..."
-        
-        # Connect to WiFi Network
-        /interface wifi set [find name=$wanInt] configuration.ssid=$targetSSID
-        :if ([:len $targetPass] > 0) do={
-            /interface wifi set [find name=$wanInt] security.passphrase=$targetPass
-        } else={
-            /interface wifi unset [find name=$wanInt] security.passphrase
-        }
-        
-        # Configure LAN WiFi Radio as Access Point
-        /interface wifi set [find name=$lanInt] configuration.mode=ap configuration.ssid=$lanSSID security.passphrase=$apPassword security.authentication-types=wpa2-psk,wpa3-psk channel.skip-dfs-channels=10min-cac disabled=no
-        
-        # Configure Bridge
-        :foreach p in={ "ether1";"ether2";"ether3";"ether4";"ether5";$lanInt } do={ :do { /interface bridge port add bridge=$bridgeName interface=$p } on-error={} }
-        
-        # Configure DHCP Client
-        /ip dhcp-client remove [find interface=ether1]
-        /ip dhcp-client remove [find interface=$lanInt]
-        :if ([:len [/ip dhcp-client find interface=$wanInt]] = 0) do={
-            /ip dhcp-client add interface=$wanInt disabled=no
-        } else={
-            /ip dhcp-client enable [find interface=$wanInt]
-        }
-        
-        # Configure WAN/LAN Interfaces
-        /interface list member remove [find list=WAN]
-        /interface list member add list=WAN interface=$wanInt
-        :do { /interface list member add list=LAN interface=$bridgeName } on-error={}
-		
-		# Wait for DHCP Client to Get Address
-		:put ">>> Requesting IP address from $targetSSID..."
-		:local counter 0
-		:local timeout 60
-		:local gotIP false
+    # Configure WAN WiFi Radio as Station
+    /interface wifi set [find name=$wanInt] configuration.mode=station channel.skip-dfs-channels=10min-cac disabled=no
+    /interface wifi unset [find name=$wanInt] security.authentication-types
+    
+    # Search for Networks to Connect To
+    :put "Scanning for available networks... (10 Seconds)"
+    :local results [/interface/wifi/scan $wanInt duration=10s as-value]
+    :local ssidList [:toarray ""]
 
-		:while ($counter < $timeout) do={
-			:local dhcpStatus [/ip dhcp-client get [find interface=$wanInt] status]
-			:if ($dhcpStatus = "bound") do={
-				:set gotIP true
-				:local currentIP [/ip dhcp-client get [find interface=$wanInt] address]
-				:put ">>> DHCP Status: $dhcpStatus ($counter/$timeout)..."
-				:put ">>> Success! Connected with IP: $currentIP"
-				# Break the loop
-				:set counter $timeout
-			} else={
-				:set counter ($counter + 1)
-				:put ">>> DHCP Status: $dhcpStatus ($counter/$timeout)..."
-				:delay 1s
-			}
-		}
+    :put "----- Available Networks -----"
+    :foreach r in=$results do={
+        :local sid ($r->"ssid")
+        
+        # Only Show Unique SSIDs Longer Than 1 Char
+        :if ([:len $sid] > 1 && [:find $ssidList $sid] = [:nothing]) do={
+            :set ssidList ($ssidList , $sid)
+            :put "[ $[:len $ssidList] ] - $sid ($($r->"signal") dBm)"
+        }
+    }
 
-		:if ($gotIP = false) do={
-			:put "!!! Warning: DHCP failed to get an IP within $timeout seconds."
-			:error "!!! Check password and captive portal."
-		}
-		
-		:put ">>> WiFi WAN Configuration Complete!"
-		
-    } else={ :error "Invalid network selection." }
+    :if ([:len $ssidList] = 0) do={
+        :error "No networks found!"
+    }
+    
+    :put "Select Network #:"
+    :local index (([/terminal inkey] - 49))
+
+    :if ($index >= 0 && $index < [:len $ssidList]) do={
+        :local targetSSID ($ssidList->$index)
+        :local targetPass [/terminal/ask prompt="Password (Blank for Open Network): "]
+        
+        :put ">>> Connecting to $targetSSID..."
+        
+        # Connect to WiFi Network
+        /interface wifi set [find name=$wanInt] configuration.ssid=$targetSSID
+        :if ([:len $targetPass] > 0) do={
+            /interface wifi set [find name=$wanInt] security.passphrase=$targetPass
+        } else={
+            /interface wifi unset [find name=$wanInt] security.passphrase
+        }
+        
+        # Configure DHCP Client
+        /ip dhcp-client remove [find interface=ether1]
+        /ip dhcp-client remove [find interface=$lanInt]
+        :if ([:len [/ip dhcp-client find interface=$wanInt]] = 0) do={
+            /ip dhcp-client add interface=$wanInt disabled=no
+        } else={
+            /ip dhcp-client enable [find interface=$wanInt]
+        }
+        
+        # Wait for DHCP Client to Get Address
+        :put ">>> Requesting IP address from $targetSSID..."
+        :local counter 0
+        :local timeout 60
+        :local gotIP false
+
+        :while ($counter < $timeout) do={
+            :local dhcpStatus [/ip dhcp-client get [find interface=$wanInt] status]
+            :if ($dhcpStatus = "bound") do={
+                :set gotIP true
+                :local currentIP [/ip dhcp-client get [find interface=$wanInt] address]
+                :put ">>> DHCP Status: $dhcpStatus ($counter/$timeout)..."
+                :put ">>> Success! Connected with IP: $currentIP"
+                # Break the loop
+                :set counter $timeout
+            } else={
+                :set counter ($counter + 1)
+                :put ">>> DHCP Status: $dhcpStatus ($counter/$timeout)..."
+                :delay 1s
+            }
+        }
+
+        :if ($gotIP = false) do={
+            :put "!!! Warning: DHCP failed to get an IP within $timeout seconds."
+            :error "!!! Check password and captive portal."
+        }
+        
+        :put ">>> WiFi WAN Configuration Complete!"
+        
+    } else={ :error "Invalid network selection." }
 }
